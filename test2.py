@@ -84,8 +84,16 @@ with open(csv_filename, mode='w', newline='') as csv_file:
             average_speed_per_minute.append(np.mean(average_speed_per_second))
             # Calculate dominant direction based on the histogram
             hist, bin_edges = np.histogram(angle_hist, bins=20, range=(-np.pi, np.pi))
-            dominant_angle = bin_edges[np.argmax(hist)]
-            dominant_direction = "North"  # Modify based on the dominant angle
+            dominant_angle = bin_edges[np.argmax(hist)] 
+            # Modify based on the dominant angle
+            if -np.pi / 4 < dominant_angle <= np.pi / 4:
+                dominant_direction = "East"
+            elif np.pi / 4 < dominant_angle <= 3 * np.pi / 4:
+                dominant_direction = "North"
+            elif -3 * np.pi / 4 < dominant_angle <= -np.pi / 4:
+                dominant_direction = "South"
+            else:
+                dominant_direction = "West" 
             angle_hist = []  # Reset histogram
 
             # Write data to CSV file
