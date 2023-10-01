@@ -43,10 +43,17 @@ p0 = p0.reshape(-1, 1, 2)
 mask = np.zeros_like(old_frame)
 
 # Histogram for flow angles
-angle_hist = []
+angle_hist = {'North': [], 'South': [], 'East': [], 'West': []}
 
 # CSV file for data logging
 csv_filename = 'crowd_flow_data.csv'
+
+# Initialize lists for plotting speed change
+time_points = []
+speed_points = []
+
+# Create subplots
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
 with open(csv_filename, mode='w', newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
@@ -73,7 +80,19 @@ with open(csv_filename, mode='w', newline='') as csv_file:
 
         # Calculate the flow angles
         angles = np.arctan2(flow_vectors[:, 1], flow_vectors[:, 0])
-        angle_hist.extend(angles)
+        dominant_direction = ""
+
+        for angle in angles:
+            if -np.pi / 4 < angle <= np.pi / 4:
+                dominant_direction = "East"
+            elif np.pi / 4 < angle <= 3 * np.pi / 4:
+                dominant_direction = "North"
+            elif -3 * np.pi / 4 < angle <= -np.pi / 4:
+                dominant_direction = "South"
+            else:
+                dominant_direction = "West"
+
+            angle_hist[dominant_direction].append(angle)
 
         # Update frame count
         frame_count += 1
@@ -83,23 +102,17 @@ with open(csv_filename, mode='w', newline='') as csv_file:
         if frame_count % int(fps) == 0:
             average_speed_per_minute.append(np.mean(average_speed_per_second))
             # Calculate dominant direction based on the histogram
-            hist, bin_edges = np.histogram(angle_hist, bins=20, range=(-np.pi, np.pi))
-            dominant_angle = bin_edges[np.argmax(hist)] 
-            # Modify based on the dominant angle
-            if -np.pi / 4 < dominant_angle <= np.pi / 4:
-                dominant_direction = "East"
-            elif np.pi / 4 < dominant_angle <= 3 * np.pi / 4:
-                dominant_direction = "North"
-            elif -3 * np.pi / 4 < dominant_angle <= -np.pi / 4:
-                dominant_direction = "South"
-            else:
-                dominant_direction = "West" 
-            angle_hist = []  # Reset histogram
+            dominant_direction = max(angle_hist, key=lambda k: len(angle_hist[k]))
+            angle_hist = {key: [] for key in angle_hist}  # Reset histograms
 
             # Write data to CSV file
             elapsed_time = frame_count / fps
             csv_writer.writerow([elapsed_time, np.mean(average_speed_per_minute), dominant_direction])
             average_speed_per_second = []
+
+            # Append data for speed change graph
+            time_points.append(elapsed_time)
+            speed_points.append(np.mean(average_speed_per_minute))
 
         # Draw optical flow vectors on the frame
         for i, (new, old) in enumerate(zip(good_new, good_old)):
@@ -129,9 +142,20 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 
-# Plot the histogram
-plt.hist(angle_hist, bins=20, range=(-np.pi, np.pi))
-plt.title("Flow Angle Histogram")
-plt.xlabel("Angle (radians)")
-plt.ylabel("Frequency")
+# Plot histograms for each direction
+for direction, angles in angle_hist.items():
+    ax1.hist(angles, bins=20, range=(-np.pi, np.pi), label=direction)
+
+ax1.set_title("Flow Angle Histogram")
+ax1.set_xlabel("Angle (radians)")
+ax1.set_ylabel("Frequency")
+ax1.legend()
+
+# Plot the speed change graph
+ax2.plot(time_points, speed_points)
+ax2.set_title("Speed Change Over Time")
+ax2.set_xlabel("Time (s)")
+ax2.set_ylabel("Average Speed (px/s)")
+
+# Show the plots
 plt.show()
